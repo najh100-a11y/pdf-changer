@@ -1,18 +1,19 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller build config: pyinstaller pdf2md.spec --noconfirm --clean
+import importlib.util
 import os
 import sys
 
 from PyInstaller.utils.hooks import collect_all, copy_metadata
 
-datas = [("app.py", ".")]
+datas = []
 binaries = []
-# scipy._cyutility exists only in scipy >= 1.16; listed so newer scipy is not bundled half-broken
-hiddenimports = ["fitz", "certifi", "scipy._cyutility"]
+hiddenimports = ["converter", "fitz", "certifi"]
+# scipy._cyutility exists only in scipy >= 1.16; include it when present so newer scipy is not bundled half-broken
+if importlib.util.find_spec("scipy._cyutility") is not None:
+    hiddenimports.append("scipy._cyutility")
 
-# Streamlit needs its static files and package metadata at runtime.
-# app.py is bundled as a data file, so its imports must be collected explicitly.
-for pkg in ["streamlit", "easyocr", "pymupdf"]:
+for pkg in ["easyocr", "pymupdf"]:
     try:
         d, b, h = collect_all(pkg)
         datas += d
@@ -21,21 +22,21 @@ for pkg in ["streamlit", "easyocr", "pymupdf"]:
     except Exception as exc:
         print(f"[spec] collect_all({pkg}) skipped: {exc}")
 
-for pkg in ["streamlit", "easyocr", "torch", "torchvision"]:
+for pkg in ["easyocr", "torch", "torchvision"]:
     try:
-        datas += copy_metadata(pkg, recursive=(pkg == "streamlit"))
+        datas += copy_metadata(pkg)
     except Exception as exc:
         print(f"[spec] copy_metadata({pkg}) skipped: {exc}")
 
 a = Analysis(
-    ["launcher.py"],
+    ["main.py"],
     pathex=[],
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
     hookspath=[],
     runtime_hooks=[],
-    excludes=[],
+    excludes=["tkinter"],
     noarchive=False,
 )
 pyz = PYZ(a.pure)
@@ -65,5 +66,6 @@ if sys.platform == "darwin":
             "CFBundleDisplayName": "PDF2MD",
             "CFBundleShortVersionString": os.environ.get("APP_VERSION", "0.0.0"),
             "NSHighResolutionCapable": True,
+            "NSRequiresAquaSystemAppearance": False,
         },
     )

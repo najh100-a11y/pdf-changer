@@ -1,11 +1,12 @@
 # Pinned to mutually compatible versions (Python 3.11)
-streamlit==1.38.0
+PySide6-Essentials==6.7.2
 PyMuPDF==1.24.10
 easyocr==1.7.2
 torch==2.4.1
 torchvision==0.19.1
 numpy==1.26.4
 opencv-python-headless==4.10.0.84
+Pillow==10.4.0
 # easyocr dependencies pinned to the same era as PyInstaller 6.10 (newer scipy breaks bundling)
 scipy==1.13.1
 scikit-image==0.24.0

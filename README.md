@@ -1,6 +1,6 @@
 # PDF2MD
 
-PDF를 가벼운 Markdown(.md) 또는 텍스트(.txt) 파일로 바꿔 주는 무료 프로그램입니다. 브라우저 화면에 PDF를 끌어다 놓기만 하면 됩니다. 논문 자료나 책 PDF를 AI 도구나 메모 앱에서 다루기 쉬운 형태로 만들 때 유용합니다.
+PDF를 가벼운 Markdown(.md) 또는 텍스트(.txt) 파일로 바꿔 주는 무료 데스크톱 프로그램입니다. 프로그램 창에 PDF를 끌어다 놓기만 하면 됩니다. 논문 자료나 책 PDF를 AI 도구나 메모 앱에서 다루기 쉬운 형태로 만들 때 유용합니다.
 
 - 글자가 살아 있는 PDF는 텍스트를 그대로 추출합니다.
 - 스캔본 PDF는 OCR로 한글과 영어를 인식합니다.
@@ -46,14 +46,17 @@ PDF를 가벼운 Markdown(.md) 또는 텍스트(.txt) 파일로 바꿔 주는 �
 
 ## 사용법
 
-1. PDF2MD를 실행하면 작은 창이 뜨고, 잠시 뒤 브라우저에 변환 화면이 자동으로 열립니다.
-2. 왼쪽 설정에서 출력 형식(Markdown 추천)을 고릅니다. 출력 폴더를 입력해 두면 변환 파일이 그 폴더에 자동 저장되고, 비워두면 다운로드 버튼으로 받습니다.
-3. PDF 파일들을 화면에 끌어다 놓고 **변환 시작**을 누릅니다.
-4. 다 쓰면 처음 뜬 작은 창을 닫습니다. 창을 닫으면 변환기도 함께 종료됩니다.
+1. PDF2MD를 실행합니다.
+2. PDF 파일들을 창 위쪽 점선 영역에 끌어다 놓습니다. PDF가 든 폴더를 통째로 놓아도 되고, 점선 영역을 눌러 파일을 고를 수도 있습니다.
+3. 아래 설정에서 출력 형식(Markdown 추천)과 저장 위치를 고릅니다. 저장 위치는 기본이 "원본 PDF와 같은 폴더"이고, 원하는 폴더를 따로 지정할 수도 있습니다. 같은 이름의 파일이 이미 있으면 덮어쓰지 않고 `이름 (1).md`처럼 번호를 붙여 저장합니다.
+4. **변환 시작**을 누르면 파일마다 진행 상황이 표시됩니다. 도중에 **중지**를 누르면 처리 중인 페이지까지 마치고 멈춥니다.
+5. 끝나면 **저장 폴더 열기**로 결과 파일을 바로 확인할 수 있습니다.
+
+설정은 다음 실행 때도 그대로 기억합니다.
 
 예상 시간은 글자가 살아 있는 PDF가 한 권에 몇 초, 스캔본 OCR이 한 페이지에 2~5초 정도입니다(300쪽 스캔본은 15~25분). 한글 OCR 정확도는 깨끗한 스캔에서 90~95%, 흐릿한 스캔에서 75~85% 수준이므로, 인용할 때는 반드시 원본 PDF에서 해당 페이지를 직접 확인하세요.
 
-문제가 생기면 작은 창의 **로그 폴더 열기**를 눌러 `server.log` 파일을 이슈(Issues)에 첨부해 주시면 원인을 찾는 데 도움이 됩니다.
+문제가 생기면 **도움말**에 표시되는 폴더의 `pdf2md.log` 파일을 이슈(Issues)에 첨부해 주시면 원인을 찾는 데 도움이 됩니다.
 
 ## 개발자용
 
@@ -65,7 +68,7 @@ Python 3.11을 권장합니다.
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-python launcher.py
+python main.py
 ```
 
 ### 설치파일 빌드와 배포
@@ -75,14 +78,14 @@ python launcher.py
 - **시험 빌드**: Actions 탭에서 "Build installers"를 선택하고 **Run workflow**를 누르면, 빌드가 끝난 뒤 해당 실행 기록 하단의 Artifacts에서 설치파일을 내려받을 수 있습니다.
 - **정식 배포**: Releases에서 **Draft a new release**를 누르고, 태그를 `v1.0.0`처럼 새로 만들어 **Publish release**를 누르면 빌드가 시작되고, 끝나면 그 Release에 설치파일이 자동으로 첨부됩니다.
 
-빌드 과정에는 자가 점검 단계가 있어서, OCR 모듈이 빠지거나 변환 서버가 켜지지 않으면 설치파일을 만들지 않고 실패로 멈춥니다.
+빌드 과정에는 자가 점검 단계가 있어서, 완성된 앱으로 프로그램 창을 화면 없이 띄워 PDF를 실제로 변환해 보고 OCR로 그림 속 글자까지 읽어봅니다. 하나라도 실패하면 설치파일을 만들지 않고 멈춥니다.
 
 ### 구조
 
 | 파일 | 역할 |
 |---|---|
-| `app.py` | 변환기 화면과 변환 로직 (Streamlit) |
-| `launcher.py` | 작은 제어 창을 띄우고 변환 서버를 켜고 끔 |
+| `main.py` | 프로그램 창(PySide6)과 자가 점검 |
+| `converter.py` | 변환 로직 (텍스트 추출, OCR, 책 페이지 라벨) |
 | `pdf2md.spec` | PyInstaller 빌드 설정 |
 | `installer/windows.iss` | Windows 설치 프로그램(Inno Setup) 설정 |
 | `.github/workflows/build.yml` | Windows·macOS 자동 빌드 및 배포 |
@@ -91,4 +94,4 @@ python launcher.py
 
 이 프로그램은 PDF 처리에 [PyMuPDF](https://github.com/pymupdf/PyMuPDF)를 사용하며, PyMuPDF가 AGPL-3.0 라이선스이므로 이 프로그램도 **AGPL-3.0**으로 배포합니다. 자유롭게 사용·수정·재배포할 수 있으며, 수정본을 배포할 때는 소스 코드도 함께 공개해야 합니다.
 
-그 밖에 사용한 주요 오픈소스: Streamlit(Apache-2.0), EasyOCR(Apache-2.0), PyTorch(BSD-3-Clause), PyInstaller.
+그 밖에 사용한 주요 오픈소스: PySide6/Qt(LGPL-3.0), EasyOCR(Apache-2.0), PyTorch(BSD-3-Clause), PyInstaller.
