@@ -7,7 +7,8 @@ from PyInstaller.utils.hooks import collect_all, copy_metadata
 
 datas = [("app.py", ".")]
 binaries = []
-hiddenimports = ["fitz", "certifi"]
+# scipy._cyutility exists only in scipy >= 1.16; listed so newer scipy is not bundled half-broken
+hiddenimports = ["fitz", "certifi", "scipy._cyutility"]
 
 # Streamlit needs its static files and package metadata at runtime.
 # app.py is bundled as a data file, so its imports must be collected explicitly.

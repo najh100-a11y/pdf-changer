@@ -208,7 +208,7 @@ def run_gui() -> None:
 # ---------------------------------------------------------------------------
 def run_selftest(out_path: str) -> None:
     lines, ok = [], True
-    for mod in ["streamlit", "fitz", "easyocr", "torch", "cv2", "numpy", "PIL", "certifi"]:
+    for mod in ["streamlit", "fitz", "scipy.ndimage", "skimage", "shapely", "easyocr", "torch", "cv2", "numpy", "PIL", "certifi"]:
         try:
             m = importlib.import_module(mod)
             lines.append(f"OK   {mod} {getattr(m, '__version__', '')}")
@@ -241,6 +241,9 @@ def _bundle_hints():  # 호출되지 않음. PyInstaller가 app.py의 의존성�
     import fitz  # noqa: F401
     import numpy  # noqa: F401
     import PIL  # noqa: F401
+    import scipy.ndimage  # noqa: F401
+    import shapely  # noqa: F401
+    import skimage  # noqa: F401
     import streamlit  # noqa: F401
     import torch  # noqa: F401
 
