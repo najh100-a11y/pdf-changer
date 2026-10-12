@@ -1,0 +1,139 @@
+name: Build installers
+
+# Releases에서 v로 시작하는 태그(예: v1.0.0)로 릴리스를 게시하면, 빌드 후 그 릴리스에 설치파일을 첨부한다.
+# Actions 탭에서 수동 실행(Run workflow)하면 시험 빌드만 하고 Artifacts로 내려받을 수 있다.
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  PYTHONUTF8: "1"
+
+jobs:
+  build:
+    name: Build (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+          - os: macos-latest
+            label: mac-applesilicon
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Set version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "APP_VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+          else
+            echo "APP_VERSION=0.0.0-dev" >> "$GITHUB_ENV"
+          fi
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller==6.10.0 pyinstaller-hooks-contrib==2024.8
+
+      - name: Build app with PyInstaller
+        run: pyinstaller pdf2md.spec --noconfirm --clean
+
+      # ---------- Smoke test: modules bundled + server starts ----------
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $exe = "dist\PDF2MD\PDF2MD.exe"
+          $p = Start-Process -FilePath $exe -ArgumentList "--selftest","selftest.txt" -Wait -PassThru
+          Get-Content selftest.txt -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { Write-Error "selftest failed"; exit 1 }
+          $s = Start-Process -FilePath $exe -ArgumentList "--server","8765","0" -PassThru
+          $ok = $false
+          for ($i = 0; $i -lt 120; $i++) {
+            try {
+              $r = Invoke-WebRequest -UseBasicParsing "http://127.0.0.1:8765/_stcore/health" -TimeoutSec 2
+              if ($r.StatusCode -eq 200) { $ok = $true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          Stop-Process -Id $s.Id -Force -ErrorAction SilentlyContinue
+          if (-not $ok) {
+            Get-Content "$env:LOCALAPPDATA\PDF2MD\server.log" -ErrorAction SilentlyContinue
+            Write-Error "server did not start"; exit 1
+          }
+          Write-Output "server OK"
+
+      - name: Smoke test (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          BIN="dist/PDF2MD.app/Contents/MacOS/PDF2MD"
+          if ! "$BIN" --selftest selftest.txt; then cat selftest.txt || true; exit 1; fi
+          cat selftest.txt
+          "$BIN" --server 8765 0 &
+          PID=$!
+          for i in $(seq 1 120); do
+            if curl -sf http://127.0.0.1:8765/_stcore/health; then break; fi
+            sleep 2
+          done
+          if ! curl -sf http://127.0.0.1:8765/_stcore/health; then
+            cat ~/Library/Logs/PDF2MD/server.log || true
+            kill $PID || true
+            echo "server did not start"; exit 1
+          fi
+          kill $PID || true
+          echo " server OK"
+
+      # ---------- Package ----------
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          choco install innosetup -y --no-progress
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$env:APP_VERSION" "installer\windows.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Build macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          mkdir -p dmg
+          ditto dist/PDF2MD.app dmg/PDF2MD.app
+          ln -s /Applications dmg/Applications
+          OUT="dist/PDF2MD-${APP_VERSION}-mac-applesilicon.dmg"
+          for i in 1 2 3; do
+            hdiutil create -volname PDF2MD -srcfolder dmg -ov -format UDZO "$OUT" && break
+            sleep 15
+          done
+          test -f "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PDF2MD-${{ matrix.label }}
+          path: |
+            dist/*.exe
+            dist/*.dmg
+          if-no-files-found: error
+
+      - name: Attach to GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.dmg
